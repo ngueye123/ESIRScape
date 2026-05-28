@@ -24,14 +24,12 @@ import tile.TileManager;
 // C est le chef d orchestre du jeu
 public class GamePanel extends JPanel implements Runnable {
 
-    // Taille d une tuile a l ecran (16px de base * echelle 3 = 48px)
-    public static final int TILE_SIZE       = 48;
-    public static final int MAX_SCREEN_COL  = 16;
-    public static final int MAX_SCREEN_ROW  = 12;
-    public static final int SCREEN_WIDTH    = TILE_SIZE * MAX_SCREEN_COL;
-    public static final int SCREEN_HEIGHT   = TILE_SIZE * MAX_SCREEN_ROW;
+    public static final int TILE_SIZE      = 48;
+    public static final int MAX_SCREEN_COL = 16;
+    public static final int MAX_SCREEN_ROW = 12;
+    public static final int SCREEN_WIDTH   = TILE_SIZE * MAX_SCREEN_COL;
+    public static final int SCREEN_HEIGHT  = TILE_SIZE * MAX_SCREEN_ROW;
 
-    // FPS cible
     private static final int FPS = 60;
 
     // Etat du jeu
@@ -43,13 +41,17 @@ public class GamePanel extends JPanel implements Runnable {
     // Score
     public int score = 0;
 
+    // Timer de jeu : 3 minutes pour deposer le projet
+    public int tempsRestant  = 180;
+    private int timerCounter = 0;
+
     // Composants principaux
     public KeyHandler keyH;
     private Thread gameThread;
     public Player player;
     public TileManager tileManager;
 
-    // Listes des entites du jeu
+    // Listes des entites
     public ArrayList<Projectile> projectiles;
     public ArrayList<Enemy> enemies;
     public ArrayList<PowerUp> powerUps;
@@ -74,7 +76,7 @@ public class GamePanel extends JPanel implements Runnable {
         powerUps    = new ArrayList<>();
     }
 
-    // Initialise ou reinitialise le jeu pour un niveau donne
+    // Initialise les entites pour un niveau donne
     public void initLevel(int level) {
         currentLevel = level;
         projectiles.clear();
@@ -83,25 +85,30 @@ public class GamePanel extends JPanel implements Runnable {
         bossSpawned = false;
         boss        = null;
 
+        // Replace le joueur en debut de carte
+        player.x  = 80;
+        player.y  = 250;
+
         if (level == 1) {
             tileManager.loadMap("/maps/map1.txt");
-            // Quelques bugs au niveau 1
             enemies.add(new BugEnemy(300, 200, this));
             enemies.add(new BugEnemy(500, 150, this));
             enemies.add(new BugEnemy(600, 300, this));
             enemies.add(new ExamenEnemy(400, 350, this));
         } else {
             tileManager.loadMap("/maps/map2.txt");
-            // Plus d ennemis au niveau 2
             enemies.add(new BugEnemy(200, 150, this));
             enemies.add(new BugEnemy(500, 200, this));
             enemies.add(new ExamenEnemy(350, 250, this));
             enemies.add(new ExamenEnemy(550, 350, this));
             enemies.add(new BugEnemy(400, 100, this));
+
+            // Le serveur Moodle est fixe dans le coin haut droit
+            boss        = new Boss(SCREEN_WIDTH - TILE_SIZE * 3, TILE_SIZE, this);
+            bossSpawned = true;
         }
     }
 
-    // Lance le thread principal du jeu
     public void startGameThread() {
         gameThread = new Thread(this);
         gameThread.start();
@@ -127,14 +134,15 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // Met a jour toutes les entites du jeu
     public void update() {
 
         if (gameState.equals("MENU")) {
             if (keyH.enterPressed) {
-                gameState = "PLAYING";
-                score     = 0;
-                player    = new Player(this, keyH);
+                gameState    = "PLAYING";
+                score        = 0;
+                tempsRestant = 180;
+                timerCounter = 0;
+                player       = new Player(this, keyH);
                 initLevel(1);
             }
             if (keyH.escapePressed) {
@@ -145,7 +153,17 @@ public class GamePanel extends JPanel implements Runnable {
         if (gameState.equals("PLAYING")) {
             player.update();
 
-            // Mise a jour des projectiles du joueur
+            // Decompte du timer : une seconde = 60 frames
+            timerCounter++;
+            if (timerCounter >= 60) {
+                timerCounter = 0;
+                tempsRestant--;
+                if (tempsRestant <= 0) {
+                    gameState = "GAME_OVER";
+                }
+            }
+
+            // Mise a jour des projectiles
             ArrayList<Projectile> projASupprimer = new ArrayList<>();
             for (Projectile p : projectiles) {
                 p.update();
@@ -162,7 +180,6 @@ public class GamePanel extends JPanel implements Runnable {
                 if (e.isDead()) {
                     ennemisASupprimer.add(e);
                     score += e.getScoreValue();
-                    // Drop aleatoire d un power up
                     dropPowerUp(e.x, e.y);
                 }
             }
@@ -171,7 +188,8 @@ public class GamePanel extends JPanel implements Runnable {
             // Mise a jour du boss si present
             if (boss != null) {
                 boss.update();
-                if (boss.isDead()) {
+                // Victoire si le joueur touche le serveur Moodle
+                if (boss.isTouched()) {
                     score    += 500;
                     gameState = "WIN";
                 }
@@ -187,10 +205,10 @@ public class GamePanel extends JPanel implements Runnable {
             }
             powerUps.removeAll(puASupprimer);
 
-            // Verification si le niveau est termine
+            // Passage au niveau suivant
             checkLevelComplete();
 
-            // Verification game over
+            // Game over si plus de vie
             if (player.hp <= 0) {
                 gameState = "GAME_OVER";
             }
@@ -198,9 +216,11 @@ public class GamePanel extends JPanel implements Runnable {
 
         if (gameState.equals("GAME_OVER")) {
             if (keyH.enterPressed) {
-                gameState = "PLAYING";
-                score     = 0;
-                player    = new Player(this, keyH);
+                gameState    = "PLAYING";
+                score        = 0;
+                tempsRestant = 180;
+                timerCounter = 0;
+                player       = new Player(this, keyH);
                 initLevel(1);
             }
         }
@@ -212,7 +232,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // Fait tomber un power up aleatoirement a la mort d un ennemi
+    // Drop aleatoire d un power up a la mort d un ennemi
     private void dropPowerUp(int x, int y) {
         double rand = Math.random();
         if (rand < 0.3) {
@@ -222,15 +242,15 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // Verifie si tous les ennemis sont morts pour passer au niveau suivant
+    // Verifie si le niveau est termine pour passer au suivant
     private void checkLevelComplete() {
         if (currentLevel == 1 && enemies.isEmpty()) {
+            // Remet le timer a zero pour le niveau 2
+            tempsRestant = 180;
+            timerCounter = 0;
             initLevel(2);
-        } else if (currentLevel == 2 && enemies.isEmpty() && !bossSpawned) {
-            // Fait apparaitre le boss
-            boss        = new Boss(SCREEN_WIDTH / 2 - 48, 80, this);
-            bossSpawned = true;
         }
+        // Au niveau 2 le boss est deja place dans initLevel
     }
 
     @Override
@@ -243,30 +263,20 @@ public class GamePanel extends JPanel implements Runnable {
         } else if (gameState.equals("PLAYING")) {
             tileManager.draw(g2);
 
-            // Affichage des power ups
             for (PowerUp pu : powerUps) {
                 pu.draw(g2);
             }
-
-            // Affichage des ennemis
             for (Enemy e : enemies) {
                 e.draw(g2);
             }
-
-            // Affichage du boss
             if (boss != null) {
                 boss.draw(g2);
             }
-
-            // Affichage des projectiles
             for (Projectile p : projectiles) {
                 p.draw(g2);
             }
 
-            // Affichage du joueur
             player.draw(g2);
-
-            // HUD
             drawHUD(g2);
 
         } else if (gameState.equals("GAME_OVER")) {
@@ -278,7 +288,6 @@ public class GamePanel extends JPanel implements Runnable {
         g2.dispose();
     }
 
-    // Affiche le menu principal
     private void drawMenu(Graphics2D g2) {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -303,21 +312,14 @@ public class GamePanel extends JPanel implements Runnable {
         g2.drawString("ZQSD / fleches : deplacer   |   Espace : tirer   |   E : changer d arme", 120, 530);
     }
 
-    // Affiche le HUD en haut de l ecran
     private void drawHUD(Graphics2D g2) {
-        // Fond de la barre de vie
+        // Barre de vie
         g2.setColor(Color.DARK_GRAY);
         g2.fillRect(10, 10, player.maxHp * 2, 15);
-
-        // Barre de vie
         g2.setColor(Color.RED);
         g2.fillRect(10, 10, player.hp * 2, 15);
-
-        // Contour
         g2.setColor(Color.WHITE);
         g2.drawRect(10, 10, player.maxHp * 2, 15);
-
-        // Texte vie
         g2.setFont(new Font("Arial", Font.PLAIN, 12));
         g2.drawString("PV : " + player.hp + "/" + player.maxHp, 15, 23);
 
@@ -333,10 +335,30 @@ public class GamePanel extends JPanel implements Runnable {
 
         // Niveau
         g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.PLAIN, 14));
         g2.drawString("Niveau " + currentLevel, SCREEN_WIDTH / 2 - 30, 25);
+
+        // Timer : rouge si moins de 30 secondes
+        int minutes  = tempsRestant / 60;
+        int secondes = tempsRestant % 60;
+        String temps = String.format("%d:%02d", minutes, secondes);
+
+        if (tempsRestant <= 30) {
+            g2.setColor(Color.RED);
+        } else {
+            g2.setColor(Color.WHITE);
+        }
+        g2.setFont(new Font("Arial", Font.BOLD, 18));
+        g2.drawString(temps, SCREEN_WIDTH / 2 - 18, 48);
+
+        // Message indicatif au niveau 2
+        if (currentLevel == 2) {
+            g2.setColor(Color.YELLOW);
+            g2.setFont(new Font("Arial", Font.PLAIN, 13));
+            g2.drawString("Depose ton projet sur le serveur Moodle !", SCREEN_WIDTH / 2 - 160, SCREEN_HEIGHT - 10);
+        }
     }
 
-    // Ecran de game over
     private void drawGameOver(Graphics2D g2) {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -347,7 +369,14 @@ public class GamePanel extends JPanel implements Runnable {
 
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.PLAIN, 22));
-        g2.drawString("Ton projet n a pas ete rendu a temps...", 160, 300);
+
+        // Message different selon la cause de la defaite
+        if (tempsRestant <= 0) {
+            g2.drawString("Temps ecoule ! Projet non rendu.", 190, 300);
+        } else {
+            g2.drawString("Ton etudiant est tombe au combat.", 190, 300);
+        }
+
         g2.drawString("Score final : " + score, 300, 350);
 
         g2.setColor(Color.GREEN);
@@ -355,7 +384,6 @@ public class GamePanel extends JPanel implements Runnable {
         g2.drawString("ENTREE pour recommencer", 250, 420);
     }
 
-    // Ecran de victoire
     private void drawWin(Graphics2D g2) {
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -366,7 +394,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.PLAIN, 22));
-        g2.drawString("Tu as rendu a temps. Bravo !", 220, 290);
+        g2.drawString("Depose a temps. Bravo !", 240, 290);
         g2.drawString("Score final : " + score, 300, 340);
 
         g2.setColor(Color.CYAN);

@@ -3,14 +3,12 @@ package entity;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
 
 import main.GamePanel;
 import main.KeyHandler;
 import projectile.PrintProjectile;
-import projectile.Projectile;
 import projectile.UsbProjectile;
 
 // Represente le joueur : l etudiant de l ESIR
@@ -23,8 +21,8 @@ public class Player extends Entity {
     public int currentWeapon = 0;
 
     // Ameliorations
-    public boolean usbUpgraded   = false;
-    public int coffeeLevel       = 0;
+    public boolean usbUpgraded = false;
+    public int coffeeLevel     = 0;
 
     // Cooldowns pour eviter le spam
     private int shootCooldown  = 0;
@@ -53,7 +51,7 @@ public class Player extends Entity {
         }
     }
 
-    // Retourne le nom de l arme active pour l affichage dans le HUD
+    // Retourne le nom de l arme active pour le HUD
     public String getWeaponName() {
         if (currentWeapon == 0) {
             return usbUpgraded ? "Cle USB x3" : "Cle USB";
@@ -64,28 +62,50 @@ public class Player extends Entity {
     @Override
     public void update() {
 
-        // Deplacement dans les 4 directions
-        if (keyH.upPressed)    y -= speed;
-        if (keyH.downPressed)  y += speed;
-        if (keyH.leftPressed)  x -= speed;
-        if (keyH.rightPressed) x += speed;
+        // Calcule la prochaine position selon les touches pressees
+        int nextX = x;
+        int nextY = y;
+
+        if (keyH.upPressed)    nextY -= speed;
+        if (keyH.downPressed)  nextY += speed;
+        if (keyH.leftPressed)  nextX -= speed;
+        if (keyH.rightPressed) nextX += speed;
+
+        // Collision horizontale : verifie les 4 coins du joueur sur l axe X
+        int colGauche = nextX / GamePanel.TILE_SIZE;
+        int colDroite = (nextX + GamePanel.TILE_SIZE - 1) / GamePanel.TILE_SIZE;
+        int rowHaut   = y / GamePanel.TILE_SIZE;
+        int rowBas    = (y + GamePanel.TILE_SIZE - 1) / GamePanel.TILE_SIZE;
+
+        boolean blocX = gp.tileManager.isSolid(colGauche, rowHaut)
+                || gp.tileManager.isSolid(colGauche, rowBas)
+                || gp.tileManager.isSolid(colDroite, rowHaut)
+                || gp.tileManager.isSolid(colDroite, rowBas);
+
+        if (!blocX) {
+            x = nextX;
+        }
+
+        // Collision verticale : verifie les 4 coins du joueur sur l axe Y
+        int colG = x / GamePanel.TILE_SIZE;
+        int colD = (x + GamePanel.TILE_SIZE - 1) / GamePanel.TILE_SIZE;
+        int rowH = nextY / GamePanel.TILE_SIZE;
+        int rowB = (nextY + GamePanel.TILE_SIZE - 1) / GamePanel.TILE_SIZE;
+
+        boolean blocY = gp.tileManager.isSolid(colG, rowH)
+                || gp.tileManager.isSolid(colG, rowB)
+                || gp.tileManager.isSolid(colD, rowH)
+                || gp.tileManager.isSolid(colD, rowB);
+
+        if (!blocY) {
+            y = nextY;
+        }
 
         // Empêche de sortir de l ecran
         if (x < 0)                                             x = 0;
         if (y < 0)                                             y = 0;
         if (x > GamePanel.SCREEN_WIDTH  - GamePanel.TILE_SIZE) x = GamePanel.SCREEN_WIDTH  - GamePanel.TILE_SIZE;
         if (y > GamePanel.SCREEN_HEIGHT - GamePanel.TILE_SIZE) y = GamePanel.SCREEN_HEIGHT - GamePanel.TILE_SIZE;
-
-        // Collision avec les murs de la tilemap
-        int col = x / GamePanel.TILE_SIZE;
-        int row = y / GamePanel.TILE_SIZE;
-        if (gp.tileManager.isSolid(col, row)) {
-            // On recule d un pixel pour sortir du mur
-            if (keyH.upPressed)    y += speed;
-            if (keyH.downPressed)  y -= speed;
-            if (keyH.leftPressed)  x += speed;
-            if (keyH.rightPressed) x -= speed;
-        }
 
         // Changement d arme avec E
         if (keyH.ePressed && switchCooldown == 0) {
@@ -108,17 +128,15 @@ public class Player extends Entity {
         int centreY = y + GamePanel.TILE_SIZE / 2;
 
         if (currentWeapon == 0) {
-            // Cle USB
             if (usbUpgraded) {
                 // Tir en eventail : 3 projectiles
-                gp.projectiles.add(new UsbProjectile(centreX, centreY, 1, 0, gp));
-                gp.projectiles.add(new UsbProjectile(centreX, centreY, 1, -1, gp));
-                gp.projectiles.add(new UsbProjectile(centreX, centreY, 1, 1, gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1,  0, gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1, -1, gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1,  1, gp));
             } else {
                 gp.projectiles.add(new UsbProjectile(centreX, centreY, 1, 0, gp));
             }
         } else {
-            // System.out.println()
             int degats = usbUpgraded ? 40 : 20;
             gp.projectiles.add(new PrintProjectile(centreX, centreY, 1, 0, degats, gp));
         }
