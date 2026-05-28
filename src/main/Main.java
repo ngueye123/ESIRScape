@@ -3,6 +3,7 @@ package main;
 import javax.swing.JFrame;
 
 // Point d'entree du programme
+// Lance la fenetre et demarre le thread du jeu
 public class Main {
 
     public static void main(String[] args) {
