@@ -28,6 +28,10 @@ public class Player extends Entity {
     private int shootCooldown  = 0;
     private int switchCooldown = 0;
 
+    // Direction du dernier deplacement : sert a orienter le tir
+    private int lastDirX = 1;
+    private int lastDirY = 0;
+
     public Player(GamePanel gp, KeyHandler keyH) {
         this.gp   = gp;
         this.keyH = keyH;
@@ -66,10 +70,11 @@ public class Player extends Entity {
         int nextX = x;
         int nextY = y;
 
-        if (keyH.upPressed)    nextY -= speed;
-        if (keyH.downPressed)  nextY += speed;
-        if (keyH.leftPressed)  nextX -= speed;
-        if (keyH.rightPressed) nextX += speed;
+        // Deplacement dans les 4 directions + memorisation de la direction
+        if (keyH.upPressed)    { nextY -= speed; lastDirX =  0; lastDirY = -1; }
+        if (keyH.downPressed)  { nextY += speed; lastDirX =  0; lastDirY =  1; }
+        if (keyH.leftPressed)  { nextX -= speed; lastDirX = -1; lastDirY =  0; }
+        if (keyH.rightPressed) { nextX += speed; lastDirX =  1; lastDirY =  0; }
 
         // Collision horizontale : verifie les 4 coins du joueur sur l axe X
         int colGauche = nextX / GamePanel.TILE_SIZE;
@@ -126,19 +131,21 @@ public class Player extends Entity {
     private void shoot() {
         int centreX = x + GamePanel.TILE_SIZE / 2;
         int centreY = y + GamePanel.TILE_SIZE / 2;
-
+        
         if (currentWeapon == 0) {
+            // Cle USB
             if (usbUpgraded) {
-                // Tir en eventail : 3 projectiles
-                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1,  0, gp));
-                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1, -1, gp));
-                gp.projectiles.add(new UsbProjectile(centreX, centreY,  1,  1, gp));
+                // Tir en eventail : direction principale + deux diagonales
+                gp.projectiles.add(new UsbProjectile(centreX, centreY, lastDirX,             lastDirY,             gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY, lastDirX - lastDirY,  lastDirY + lastDirX,  gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY, lastDirX + lastDirY,  lastDirY - lastDirX,  gp));
             } else {
-                gp.projectiles.add(new UsbProjectile(centreX, centreY, 1, 0, gp));
+                gp.projectiles.add(new UsbProjectile(centreX, centreY, lastDirX, lastDirY, gp));
             }
         } else {
+            // System.out.println()
             int degats = usbUpgraded ? 40 : 20;
-            gp.projectiles.add(new PrintProjectile(centreX, centreY, 1, 0, degats, gp));
+            gp.projectiles.add(new PrintProjectile(centreX, centreY, lastDirX, lastDirY, degats, gp));
         }
     }
 
