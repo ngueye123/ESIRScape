@@ -13,8 +13,8 @@ Le joueur incarne un étudiant (ou un ninja) de l'ESIR qui doit traverser les co
 | Mboumba | Mack   | Chef de projet / Menu et États |
 | Diaby | .Mamoudou   | Système de tir et Projectiles |
 | Ba | Ibrahima    | Ennemis de base |
-| Kerim |Mouhamed    | Boss et Collisions |
-| GUEYE | Ndiaga   | Power-ups, Score et Map design |
+| Kerim |Mohamed    | Boss et Map design|
+| GUEYE | Ndiaga   | Power-ups, Score  |
 
 ---
 
