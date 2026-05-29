@@ -2,7 +2,7 @@
 
 Jeu de type **shoot them up (shmup)** en 2D vue du dessus, réalisé en Java dans le cadre du projet de programmation ESIR1 2025-2026.
 
-Le joueur incarne un étudiant (ou un ninja) de l'ESIR qui doit traverser les couloirs de l'ISTIC pour rendre son projet de programmation avant la deadline. Il affronte des bugs informatiques, des examens surprises, et finit par combattre le boss final : le Prof Duroc qui bloque l'accès au serveur Moodle.
+Le joueur incarne un étudiant (ou un ninja) de l'ESIR qui doit rendre son projet de programmation avant la deadline. Il affronte des bugs informatiques, des examens surprises, et finit par combattre le boss final : le Prof Duroc qui bloque l'accès au serveur Moodle.
 
 ---
 
@@ -59,12 +59,7 @@ java -version
 
 ## Installation et lancement
 
-### Cloner le repo Git
 
-```bash
-git clone https://github.com/tonpseudo/ESIREscape.git
-cd ESIREscape
-```
 
 ### Lancer avec IntelliJ IDEA
 
